@@ -6,12 +6,12 @@ import threading
 import asyncio
 import os
 import sys
+from datetime import datetime  # Importando a biblioteca datetime para pegar a data e hora
 
 def get_tshark_path():
     # Obtém o caminho para o diretório onde este script está sendo executado
     base_path = os.path.abspath(os.path.dirname(sys.argv[0]))
     
-    # Assumindo que o tshark.exe está na pasta 'tshark' dentro do diretório do executável
     tshark_path = os.path.join(base_path, 'tshark', 'tshark.exe')
     
     return tshark_path
@@ -51,11 +51,14 @@ def capture_cdp_packets(interface):
             # Verifica se já vimos este dispositivo
             if switch_name not in seen_devices:
                 seen_devices.add(switch_name)
-                message = f"SW: {switch_name}\nIP: {ip_sw}\nPORTA: {port_id}\nVLAN: {vlan_nativa}\nVLAN VOICE: {vlan_voice}\nMODELO: {switch_type}"
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Obtém a data e hora atual
+                message = f"[{timestamp}]\nSW: {switch_name}\nIP: {ip_sw}\nPORTA: {port_id}\nVLAN: {vlan_nativa}\nVLAN VOICE: {vlan_voice}\nMODELO: {switch_type}"
                 display_info(message)
                 display_info("-" * 40)
                 loading_label.config(text="Informações capturadas:")
                 root.update_idletasks()  # Atualiza a interface gráfica
+                log(message)
+
 
 # Função para iniciar a captura de pacotes
 def start_capture():
@@ -72,45 +75,50 @@ def display_info(info):
     result_text.insert(tk.END, info + "\n")
     result_text.see(tk.END)
 
+def log(value):
+    log_file_patch = "Switch.txt"
+    with open(log_file_patch, "r") as log_file:
+        linhas = log_file.readlines()
+
+    if len(linhas) >= 50000:
+        linhas = linhas[-49999:]
+
+    linhas.append(value + "\n\n")
+
+    with open(log_file_patch, "w") as log_file:
+        log_file.writelines(linhas)
+
 # Interface Gráfica
 root = tk.Tk()
 root.title("Captura de Pacotes CDP")
 root.geometry("400x450")
 
-# Frame principal
+
 frame = ttk.Frame(root, padding="2")
 frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
-# Label com o seu nome no rodapé
 your_name_label = ttk.Label(frame, text="Desenvolvido por: Alexandre Campos")
 your_name_label.grid(column=0, row=3, columnspan=3, sticky=tk.S)
 
-# Label inicial para o texto de carregamento
 loading_label = ttk.Label(frame, text="Clique em 'Iniciar Captura' para carregar as informações.")
 loading_label.grid(column=0, row=1, columnspan=3, sticky=tk.N)
 
-# Label e Combobox para selecionar a interface de rede
 ttk.Label(frame, text="Selecione a Interface:").grid(column=0, row=0, sticky=tk.W)
 interfaces = list_network_interfaces()
 interface_combobox = ttk.Combobox(frame, values=list(interfaces))
 interface_combobox.grid(column=1, row=0, sticky=(tk.W, tk.E))
 
-# Botão para iniciar a captura de pacotes
 start_button = ttk.Button(frame, text="Iniciar Captura", command=start_capture)
 start_button.grid(column=2, row=0, sticky=tk.W)
 
-# Área de texto para exibir resultados
 result_text = tk.Text(frame, wrap="word", height=20, width=40)
 result_text.grid(column=0, row=2, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S))
 
-# Scrollbar para a área de texto
 scrollbar = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=result_text.yview)
 result_text['yscrollcommand'] = scrollbar.set
 scrollbar.grid(column=3, row=1, sticky=(tk.N, tk.S))
 
-# Configuração do grid
 frame.columnconfigure(1, weight=1)
 frame.rowconfigure(1, weight=1)
 
-# Loop principal da interface gráfica
 root.mainloop()
